@@ -5,7 +5,7 @@
 int ROWS, COLS;
 bool ISLIGHTMODE = false;
 double ITERATIONTIME = 0.5;
-int TABLEWIDTH = 90;
+int TABLEWIDTH = 100;
 int TABLEHEIGHT = 23;
 
 static constexpr int KEY_ARROW_UP = KEY_UP;
@@ -16,12 +16,12 @@ static constexpr int KEY_CHANGE_CELL = KEY_END;
 static constexpr int KEY_RANDOM_FILL = KEY_HOME;
 static constexpr int KEY_CLEAR_SCREEN = KEY_DC; //DEL
 static constexpr int KEY_INS = KEY_IC; //INS
-static constexpr int KEY_CONFIRN = 10; //ENTER
+static constexpr int KEY_CONFIRM = 10; //ENTER
 static constexpr int KEY_ESC = 27; //ESC
-static constexpr int KEY_B_Y = 89; //Y
-static constexpr int KEY_S_Y = 121; //y
-static constexpr int KEY_B_N = 78; //N
-static constexpr int KEY_S_N = 110; //n
+static constexpr int KEY_Y_UPPER = 89;
+static constexpr int KEY_Y_LOWER = 121;
+static constexpr int KEY_N_UPPER = 78;
+static constexpr int KEY_N_LOWER = 110;
 
 static void reverseColor() {
     ISLIGHTMODE ? attroff(A_REVERSE) : attron(A_REVERSE);
@@ -30,30 +30,30 @@ static void reverseColor() {
 
 class GameOfLife {
 protected:
-    int WIDTH, HEIGHT;
-    int Generation, Population;
+    int Width, Height, Generation, Population;
     std::vector<std::vector<bool>> CurrGameTable;
     std::vector<std::vector<bool>> PrevGameTable;
 
     bool getNormalizedValue(const int& x, const int& y) {
-        return PrevGameTable[(y + HEIGHT) % HEIGHT][(x + WIDTH) % WIDTH];
+        return PrevGameTable[(y + Height) % Height][(x + Width) % Width];
     }
 
     void changeCell(const int& x, const int& y) {
-        if (x >= 0 && y >= 0 && x < WIDTH && y < HEIGHT)
+        if (x >= 0 && y >= 0 && x < Width && y < Height)
             PrevGameTable[y][x] = !PrevGameTable[y][x];
     }
 
 public:
-    GameOfLife(int height, int width) : HEIGHT(height), WIDTH(width), Generation(0), Population(0), CurrGameTable(height, std::vector<bool>(width)), PrevGameTable(height, std::vector<bool>(width)) {}
+    GameOfLife(int height, int width) : Height(height), Width(width), Generation(0), Population(0), CurrGameTable(height, std::vector<bool>(width)), PrevGameTable(height, std::vector<bool>(width)) {}
 
     int getGeneration() const { return Generation; }
+
     int getPopulation() const { return Population; }
 
     bool iterate() {
         Population = 0;
-        for (int y = 0; y < HEIGHT; y++) {
-            for (int x = 0; x < WIDTH; x++) {
+        for (int y = 0; y < Height; y++) {
+            for (int x = 0; x < Width; x++) {
                 int neighborSum = 0;
                 for (int dy = -1; dy <= 1; dy++) {
                     for (int dx = -1; dx <= 1; dx++) {
@@ -85,6 +85,13 @@ public:
         Generation = 0;
         Population = 0;
     }
+
+    void resize(int newHeight, int newWidth) {
+        Height = newHeight;
+        Width = newWidth;
+        CurrGameTable.resize(Height, std::vector<bool>(Width));
+        PrevGameTable.resize(Height, std::vector<bool>(Width));
+    }
 };
 
 class Game : public GameOfLife {
@@ -93,76 +100,9 @@ private:
         std::random_device rd;
         std::mt19937 generator(rd());
         std::uniform_int_distribution<int> distribution(0, 1);
-        for (int y = 0; y < HEIGHT; y++)
-            for (int x = 0; x < WIDTH; x++)
-                PrevGameTable[y][x] = distribution(generator) == 0;
-    }
-
-    void handleKeyPress(int key, int& cursorX, int& cursorY) {
-        switch (key) {
-        case KEY_ARROW_UP:
-            cursorY = (cursorY - 1 + HEIGHT) % HEIGHT;
-            break;
-        case KEY_ARROW_DOWN:
-            cursorY = (cursorY + 1) % HEIGHT;
-            break;
-        case KEY_ARROW_LEFT:
-            cursorX = (cursorX - 1 + WIDTH) % WIDTH;
-            break;
-        case KEY_ARROW_RIGHT:
-            cursorX = (cursorX + 1) % WIDTH;
-            break;
-        case KEY_CHANGE_CELL:
-            changeCell(cursorX, cursorY);
-            break;
-        case KEY_RANDOM_FILL:
-            randomFill();
-            break;
-        case KEY_CLEAR_SCREEN:
-            reset();
-            break;
-        }
-    }
-
-    int offsetX, offsetY;
-
-public:
-    Game(int height, int width) : GameOfLife(height, width), offsetX((COLS - WIDTH) / 2), offsetY((ROWS - HEIGHT) / 2) {}
-
-    void run() {
-        bool stop_flag = false, play_flag = true;
-        time_t early_time, last_time;
-
-        if (!editTable()) play_flag = false;
-        last_time = 0;
-        early_time = time(NULL);
-        stop_flag = false;
-        while (play_flag) {
-            switch (getch()) {
-            case KEY_INS:
-                editTable();
-                stop_flag = false;
-                last_time = 0;
-                break;
-            case KEY_ESC:
-                reset();
-                play_flag = false;
-                break;
-            default:
-                if (time(NULL) - last_time > ITERATIONTIME and !stop_flag) {
-                    display();
-                    stop_flag = iterate();
-                    last_time = time(NULL);
-                }
-                if (stop_flag) mvprintw(offsetY - 3, (COLS - 35) / 2, "Stable condition has been achieved!");
-                mvprintw(offsetY + HEIGHT + 1, (COLS - 10) / 2, "Edit - INS");
-                mvprintw(offsetY + HEIGHT + 2, (COLS - 10) / 2, "Exit - ESC");
-                mvprintw(offsetY + HEIGHT + 1, (COLS - 10) / 2 - 25, "Generation: %d", getGeneration());
-                mvprintw(offsetY + HEIGHT + 2, (COLS - 10) / 2 - 25, "Population: %d", getPopulation());
-                mvprintw(offsetY + HEIGHT + 1, (COLS - 10) / 2 + 20, "Time: %d %s", (time(NULL) - early_time), "sec");
-                break;
-            }
-        }
+        for (int y = 0; y < Height; y++)
+            for (int x = 0; x < Width; x++)
+                PrevGameTable[y][x] = (distribution(generator) == 0);
     }
 
     bool editTable() {
@@ -170,15 +110,80 @@ public:
         int cursorY = 0;
         while (true) {
             display(cursorX, cursorY);
-            mvprintw(offsetY + HEIGHT + 1, (COLS - 74) / 2, "Change the state - END | Random fill - HOME | Clear - DEL | Start - ENTER");
-            mvprintw(offsetY + HEIGHT + 2, (COLS - 41) / 2, "UP/DOWN/RIGHT/LEFT - Arrows | Exit - ESC");
+            mvprintw(offsetY + Height + 1, (COLS - 74) / 2, "Change the state - END | Random fill - HOME | Clear - DEL | Start - ENTER");
+            mvprintw(offsetY + Height + 2, (COLS - 41) / 2, "UP/DOWN/RIGHT/LEFT - Arrows | Exit - ESC");
             int key = getch();
-            if (key == KEY_CONFIRN)
+            switch (key) {
+            case KEY_CONFIRM:
                 return true;
-            else if (key == KEY_ESC)
+                break;
+            case KEY_ESC:
                 return false;
-            else
-                handleKeyPress(key, cursorX, cursorY);
+                break;
+            case KEY_CHANGE_CELL:
+                changeCell(cursorX, cursorY);
+                break;
+            case KEY_RANDOM_FILL:
+                randomFill();
+                break;
+            case KEY_CLEAR_SCREEN:
+                reset();
+                break;
+            case KEY_ARROW_UP:
+                cursorY = (cursorY - 1 + Height) % Height;
+                break;
+            case KEY_ARROW_DOWN:
+                cursorY = (cursorY + 1) % Height;
+                break;
+            case KEY_ARROW_LEFT:
+                cursorX = (cursorX - 1 + Width) % Width;
+                break;
+            case KEY_ARROW_RIGHT:
+                cursorX = (cursorX + 1) % Width;
+                break;
+            }
+        }
+    }
+
+    int offsetX, offsetY;
+
+public:
+    Game(int height, int width) : GameOfLife(height, width), offsetX((COLS - Width) / 2), offsetY((ROWS - Height) / 2) {}
+
+    void run() {
+        bool isStable = false;
+        time_t initialTime = time(NULL);
+        time_t lastTime = time(NULL);
+        offsetX = (COLS - Width) / 2;
+        offsetY = (ROWS - Height) / 2;
+
+        if (!editTable())
+            return;
+        while (true) {
+            switch (getch()) {
+            case KEY_INS:
+                editTable();
+                isStable = false;
+                lastTime = 0;
+                break;
+            case KEY_ESC:
+                //reset(); //нужно ли сбрасывать таблицу при выходе?
+                return;
+                break;
+            default:
+                if (time(NULL) - lastTime > ITERATIONTIME and !isStable) {
+                    display();
+                    isStable = iterate();
+                    lastTime = time(NULL);
+                }
+                if (isStable) mvprintw(offsetY - 3, (COLS - 35) / 2, "Stable condition has been achieved!");
+                mvprintw(offsetY + Height + 1, (COLS - 10) / 2, "Edit - INS");
+                mvprintw(offsetY + Height + 2, (COLS - 10) / 2, "Exit - ESC");
+                mvprintw(offsetY + Height + 1, (COLS - 10) / 2 - 25, "Generation: %d", getGeneration());
+                mvprintw(offsetY + Height + 2, (COLS - 10) / 2 - 25, "Population: %d", getPopulation());
+                mvprintw(offsetY + Height + 1, (COLS - 10) / 2 + 20, "Time: %d %s", (time(NULL) - initialTime), "sec");
+                break;
+            }
         }
     }
 
@@ -186,11 +191,11 @@ public:
         for (int i = 0; i < ROWS; i++)
             for (int j = 0; j < COLS; j++)
                 mvaddch(i, j, ' ');
-        for (int y = 0; y < HEIGHT + 2; y++) {
-            for (int x = 0; x < WIDTH + 2; x++) {
+        for (int y = 0; y < Height + 2; y++) {
+            for (int x = 0; x < Width + 2; x++) {
                 int posX = offsetX + x;
                 int posY = offsetY + y - 2;
-                if (x == 0 or y == 0 or x == WIDTH + 1 or y == HEIGHT + 1) {
+                if (x == 0 or y == 0 or x == Width + 1 or y == Height + 1) {
                     reverseColor();
                     mvwaddch(stdscr, posY, posX, ' ');
                     reverseColor();
@@ -206,15 +211,6 @@ public:
                 }
             }
         }
-    }
-
-    void resize(int newHeight, int newWidth) {
-        HEIGHT = newHeight;
-        WIDTH = newWidth;
-        CurrGameTable.resize(HEIGHT, std::vector<bool>(WIDTH));
-        PrevGameTable.resize(HEIGHT, std::vector<bool>(WIDTH));
-        offsetX = (COLS - WIDTH) / 2;
-        offsetY = (ROWS - HEIGHT) / 2;
     }
 };
 
@@ -267,10 +263,9 @@ private:
     };
 
     Game myGame{ TABLEHEIGHT, TABLEWIDTH };
-    time_t early_time = 0;
-    time_t last_time = 0;
-    bool isTitleRunning = false;
-    int itemsOffset = 8;
+    time_t lastTime;
+    bool isTitleRunning;
+    int itemsOffset;
     int startMenuPos;
 
     void showOptions();
@@ -280,10 +275,10 @@ private:
 
     void updateField(int titleNumber) {
         isTitleRunning = false;
-        reset();
         const int heightTitle = 5;
-        int lengthTitle = titles[titleNumber][0].size();
+        const int lengthTitle = titles[titleNumber][0].size();
 
+        reset();
         for (int y = 0; y < heightTitle; y++) {
             for (int x = 0; x < lengthTitle; x++) {
                 if (titles[titleNumber][y][x] == '@')
@@ -293,9 +288,9 @@ private:
     }
 
     void displayTitle() {
-        if (isTitleRunning and time(NULL) - last_time > ITERATIONTIME) {
-            last_time = time(NULL);
+        if (isTitleRunning and time(NULL) - lastTime > ITERATIONTIME) {
             iterate();
+            lastTime = time(NULL);
         }
         for (int y = 0; y < ROWS; y++) {
             for (int x = 0; x < COLS; x++) {
@@ -311,7 +306,7 @@ private:
     }
 
 public:
-    MainMenu() : GameOfLife(ROWS, COLS), startMenuPos(ROWS * 0.333 - 3) {}
+    MainMenu() : GameOfLife(ROWS, COLS), startMenuPos(ROWS * 0.333 - 3), itemsOffset(8), isTitleRunning(false), lastTime(0) {}
 
     void run() {
         int mainMenuChoice = 0;
@@ -320,7 +315,6 @@ public:
 
         updateField(0);
         while (true) {
-
             displayTitle();
             for (int i = 0; i < mainMenuItems.size(); i++) {
                 move(startMenuPos + itemsOffset + i, (COLS - lengthMainMenu) / 2 - 1);
@@ -329,7 +323,7 @@ public:
 
             switch (getch()) {
             case KEY_END:
-                isTitleRunning = true;
+                isTitleRunning = !isTitleRunning;
                 break;
             case KEY_UP:
                 if (mainMenuChoice > 0) mainMenuChoice--;
@@ -339,7 +333,7 @@ public:
                 if (mainMenuChoice < sizeMainMenu - 1) mainMenuChoice++;
                 else mainMenuChoice = 0;
                 break;
-            case KEY_CONFIRN:
+            case KEY_CONFIRM:
                 clear();
                 refresh();
                 switch (mainMenuChoice) {
@@ -394,7 +388,7 @@ int main() {
     return 0;
 }
 
-void MainMenu::showOptions() {
+void MainMenu::showOptions() { //реализация функции проклята
     int optionMenuChoice = 0;
     int sizeOptionMenu = 4;
     int offsetX = (COLS - 16) / 2;
@@ -432,7 +426,7 @@ void MainMenu::showOptions() {
             mvprintw(offsetY + 3, offsetX, " Console size: %d %d", ROWS, COLS);
             move(offsetY + 1, offsetX + 22);
             double newIterationTime;
-            char inputStr[5];
+            char inputStr[15];
             echo();
             getstr(inputStr);
             sscanf_s(inputStr, "%lf", &newIterationTime);
@@ -462,16 +456,17 @@ void MainMenu::showOptions() {
             int newWidth, newHeight;
             echo();
             scanw("%d %d", &newHeight, &newWidth);
-            if (newHeight > 0 and newWidth > 0) {
+            if (newHeight >= 1 and newWidth >= 1 and newHeight <= 100 and newWidth <= 200) {
                 TABLEHEIGHT = newHeight;
                 TABLEWIDTH = newWidth;
                 myGame.resize(TABLEHEIGHT, TABLEWIDTH);
             }
             else {
                 clear();
-                attron(COLOR_PAIR(1));
-                DispTextCenter("Invalid input. Please enter positive integer values.", -2);
-                DispTextCenter("               Press ESC to continue...             ", -1);
+                attron(COLOR_PAIR(1));          
+                DispTextCenter("                  Invalid input                     ", -2);
+                DispTextCenter(" The range of acceptable table sizes: 1x1 - 100x200 ", -1);
+                DispTextCenter("              Press ESC to continue...              ",  0);
                 attroff(COLOR_PAIR(1));
                 while (!(getch() == KEY_ESC));
             }
@@ -490,7 +485,7 @@ void MainMenu::showOptions() {
             int newRows, newCols;
             echo();
             scanw("%d %d", &newRows, &newCols);
-            if (newRows > 0 and newCols > 0) {
+            if (newRows >= 20 and newCols >= 90 and newRows <= 90 and newCols <= 200) {
                 ROWS = newRows;
                 COLS = newCols;
                 resize_term(newRows, newCols);
@@ -499,11 +494,14 @@ void MainMenu::showOptions() {
             else {
                 clear();
                 attron(COLOR_PAIR(1));
-                DispTextCenter("Invalid input. Please enter positive integer values.", -2);
-                DispTextCenter("               Press ESC to continue...             ", -1);
+                DispTextCenter("                    Invalid input                       ", -2);
+                DispTextCenter(" The range of acceptable console sizes: 20x90 - 90x200 ", -1);
+                DispTextCenter("                Press ESC to continue...                ",  0);
                 attroff(COLOR_PAIR(1));
                 while (!(getch() == KEY_ESC));
             }
+            resize(ROWS, COLS);
+            startMenuPos = ROWS * 0.333 - 3;
             noecho();
             isEdit = false;
         }
@@ -519,11 +517,11 @@ void MainMenu::showOptions() {
             if (optionMenuChoice < sizeOptionMenu - 1) optionMenuChoice++;
             else optionMenuChoice = 0;
             break;
-        case KEY_CONFIRN:
+        case KEY_CONFIRM:
             isEdit = true;
             break;
         case KEY_END:
-            isTitleRunning = true;
+            isTitleRunning = !isTitleRunning;
             break;
         case KEY_ESC:
             return;
@@ -538,11 +536,12 @@ void MainMenu::showTutorial() {
         DispTextCenter("This is the game of life", 0);
         DispTextCenter("A dead cell comes to life if there are 3 living cells near it", 1);
         DispTextCenter("A living cell dies if there are less than 2 and more than 3 living cells near it", 2);
-        DispTextCenter("Press ESC to exit...", 3);
+        DispTextCenter("The boundaries of the game are interconnected. Press the END key)", 3);
+        DispTextCenter("Press ESC to exit...", 4);
 
         switch (getch()) {
         case KEY_END:
-            isTitleRunning = true;
+            isTitleRunning = !isTitleRunning;
             break;
         case KEY_ESC:
             return;
@@ -554,12 +553,12 @@ void MainMenu::showTutorial() {
 void MainMenu::showCredits() {
     while (true) {
         displayTitle();
-        DispTextCenter("Chernikov A.M. 20.11.2023 - 03.05.2024", 0, -1);
+        DispTextCenter("Chernikov A.M. 20.11.2023 - 07.05.2024", 0, -1);
         DispTextCenter("Press ESC to exit...", 1, -1);
 
         switch (getch()) {
         case KEY_END:
-            isTitleRunning = true;
+            isTitleRunning = !isTitleRunning;
             break;
         case KEY_ESC:
             return;
@@ -575,10 +574,10 @@ bool MainMenu::exitProgram() {
 
         int key = getch();
         if (key == KEY_END)
-            isTitleRunning = true;
-        else if (key == KEY_S_N or key == KEY_B_N or key == KEY_ESC)
+            isTitleRunning = !isTitleRunning;
+        else if (key == KEY_N_LOWER or key == KEY_N_UPPER or key == KEY_ESC)
             return false;
-        else if (key == KEY_S_Y or key == KEY_B_Y or key == KEY_CONFIRN)
+        else if (key == KEY_Y_LOWER or key == KEY_Y_UPPER or key == KEY_CONFIRM)
             return true;
     }
 }
